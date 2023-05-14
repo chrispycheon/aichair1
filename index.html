@@ -15,7 +15,7 @@
 
     function listBluetoothDevices() {
       navigator.bluetooth.requestDevice({
-        filters: [{ name: 'HC-06' }],
+        acceptAllDevices: true
       })
       .then(device => {
         return device.gatt.connect();
