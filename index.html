@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>아두이노 그래프</title>
+  <title>블루투스 데이터 수신</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
@@ -15,7 +15,7 @@
 
     function listBluetoothDevices() {
       navigator.bluetooth.requestDevice({
-        filters: [{ name: 'HC-06' }]
+        filters: [{ name: 'HC-06' }],
       })
       .then(device => {
         return device.gatt.connect();
@@ -36,14 +36,15 @@
     throw 'Target service not found.';
   }
 })
-
       .then(rxCharacteristic => {
         rxCharacteristic.addEventListener('characteristicvaluechanged', event => {
           const value = event.target.value;
           const dataView = new DataView(value.buffer);
           const number = dataView.getUint8(0);
           dataArray.push(number);
-          plotData();
+          if (dataArray.length === 10) {
+            plotData();
+          }
         });
         return rxCharacteristic.startNotifications();
       })
