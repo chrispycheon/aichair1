@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>아두이노 그래프</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+  <button onclick="listBluetoothDevices()">블루투스 연결</button>
+  <ul id="bluetooth-devices"></ul>
+  <div id="chart"></div>
+  <script>
+    const bluetoothDevicesList = document.getElementById("bluetooth-devices");
+    const chart = document.getElementById("chart");
+    let dataArray = [];
+
+    function listBluetoothDevices() {
+      navigator.bluetooth.requestDevice({
+        filters: [{ name: 'HC-06' }]
+      })
+      .then(device => {
+        return device.gatt.connect();
+      })
+      .then(server => {
+  return server.getPrimaryServices();
+})
+.then(services => {
+  let targetService = null;
+  services.forEach(service => {
+    if (service.uuid === '0000FFE0-0000-1000-8000-00805F9B34FB') {
+      targetService = service;
+    }
+  });
+  if (targetService) {
+    return targetService.getCharacteristic('0000FFE1-0000-1000-8000-00805F9B34FB');
+  } else {
+    throw 'Target service not found.';
+  }
+})
+
+      .then(rxCharacteristic => {
+        rxCharacteristic.addEventListener('characteristicvaluechanged', event => {
+          const value = event.target.value;
+          const dataView = new DataView(value.buffer);
+          const number = dataView.getUint8(0);
+          dataArray.push(number);
+          plotData();
+        });
+        return rxCharacteristic.startNotifications();
+      })
+      .catch(error => {
+        console.error(error);
+      });
+    }
+
+    function plotData() {
+      const x = [];
+      const y = [];
+      for (let i = 0; i < dataArray.length; i++) {
+        x.push(i);
+        y.push(dataArray[i]);
+      }
+      const trace = {
+        x: x,
+        y: y,
+        type: 'scatter'
+      };
+      const layout = {
+        title: '아두이노 데이터 그래프',
+        xaxis: {title: '시간'},
+        yaxis: {title: '데이터 값'}
+      };
+      Plotly.newPlot(chart, [trace], layout);
+    }
+  </script>
+</body>
+</html>
