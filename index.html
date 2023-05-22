@@ -1,65 +1,101 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>블루투스 데이터 수신</title>
+  <meta charset="UTF-8">
+  <title>AI의자 인터페이스</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+
+    #toggleButton {
+        cursor: pointer;
+        font-size: 20;
+        font-weight: bold;
+        color: black;
+        text-decoration: underline;
+    }
+
+    #textContainer {
+      display: none;
+    }
+
+    #dataContainer {
+        font-size: 30px;
+        font-weight: bold;
+        color: black;
+    }
+  </style>
 </head>
 <body>
+
+  <div style="font-size: 35px; font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif; font-weight: 900;">&lt;AI 의자 설명&gt;</div>
+    <button id="toggleButton" onclick="toggleText()">↓설명보기</button>
+    <div id="textContainer">
+        <p style="font-size: 25px; font-family:Arial, Helvetica, sans-serif; font-weight: 900;">AI 의자란?<br></p>
+            <p> - AI가 실시간으로 자세를 측정하고, 측정값을 바탕으로 스스로 판단하여 자세점수를 나타내주는 의자입니다. </p>
+            <br>
+        <p style="font-size: 25px; font-family:Arial, Helvetica, sans-serif; font-weight: 900;">인터페이스 구성<br></p>
+            <p> - <span style="font-weight: 900;">블루투스연결</span> : 먼저 밑에있는 '블루투스 연결' 버튼을 눌러 연결할 AI의자를 선택합니다. </p>
+            <p> - <span style="font-weight: 900;">점수창</span> : 실시간으로 측정한 자세점수를 출력합니다. </p>
+            <p> - <span style="font-weight: 900;">그래프창</span> : 실시간으로 측정한 자세점수를 시간에 따른 그래프로 표현합니다. 그래프를 이용하면 본인이 어느시간대에 자세가 안좋았는지 판단하는 도구로 사용할수있습니다. </p>
+            <br>
+        <p style="font-size: 25px; font-family:Arial, Helvetica, sans-serif; font-weight: 900;">점수<br></p>
+            <p> - 점수는 1~25점으로 나타내며 점수가 높을수록 좋은 자세입니다.</p>
+  </div>
+  <br>
   <button onclick="listBluetoothDevices()">블루투스 연결</button>
-  <ul id="bluetooth-devices"></ul>
+  <br><br><br>
+  <div style = "left: 50%; font-size: 40px; font-weight: 900;">점수 : <span id="scoreContainer" ></span></div>
+  <div id="dataContainer"></div>
   <div id="chart"></div>
+
+  <script>
+    function toggleText() {
+        toggleButton.innerText = "↓설명보기";
+        if(textContainer.style.display == "none")
+        {
+            textContainer.style.display = "block";
+            toggleButton.innerText = "↑접기";
+        }
+        else
+        {
+            textContainer.style.display = "none";
+            toggleButton.innerText = "↓설명보기";
+        }
+    }
+  </script>
   <script>
     const bluetoothDevicesList = document.getElementById("bluetooth-devices");
     const chart = document.getElementById("chart");
     let dataArray = [];
 
+    function onDataReceived(event) {
+      const receivedDataView = event.target.value;
+      const receivedData = receivedDataView.buffer;
+      const dataContainer = document.getElementById("dataContainer");
+      const decoder = new TextDecoder('utf-8');
+      const receivedText = decoder.decode(receivedData);
+      const scoreContainer = document.getElementById("scoreContainer");
+      scoreContainer.innerText = receivedText;
+    }
+
+
     function listBluetoothDevices() {
       navigator.bluetooth.requestDevice({
-        filters: [{ services: ["FFE0-0000-1000-00805F9B34FB"] }]
+        filters: [{ services: ['0000ffe0-0000-1000-8000-00805f9b34fb'] }]
       })
-      .then(device => {
-        return device.gatt.connect();
-      })
-      .then(function(server) {
-         return server.getPrimaryService("FFE0-0000-1000-00805F9B34FB");
-        })
-        .then(function(service) {
-         return service.getCharacteristic("FFE1-0000-1000-00805F9B34FB");
-        })
-        .then(rxCharacteristic => {
-        rxCharacteristic.addEventListener('characteristicvaluechanged', event => {
-          const value = event.target.value;
-          const dataView = new DataView(value.buffer);
-          const number = dataView.getUint8(0);
-          dataArray.push(number);
-          plotData();
-        });
-        return rxCharacteristic.startNotifications();
+      .then(device => device.gatt.connect())
+      .then(server => server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb'))
+      .then(service => service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb'))
+      .then(characteristic => characteristic.startNotifications())
+      .then(characteristic => {
+        characteristic.addEventListener('characteristicvaluechanged', onDataReceived);
       })
       .catch(error => {
         console.error(error);
       });
     }
-
-    function plotData() {
-      const x = [];
-      const y = [];
-      for (let i = 0; i < dataArray.length; i++) {
-        x.push(i);
-        y.push(dataArray[i]);
-      }
-      const trace = {
-        x: x,
-        y: y,
-        type: 'scatter'
-      };
-      const layout = {
-        title: '아두이노 데이터 그래프',
-        xaxis: {title: '시간'},
-        yaxis: {title: '데이터 값'}
-      };
-      Plotly.newPlot(chart, [trace], layout);
-    }
   </script>
 </body>
 </html>
+
+
